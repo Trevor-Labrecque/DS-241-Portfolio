@@ -1,0 +1,109 @@
+---
+title: "Lab 4"
+author: "Trevor Labrecque"
+date: "9/29/2020"
+output: html_document
+---
+Load packages
+```{r}
+library(tidyverse)
+library(readxl)
+```
+
+Load in the Data
+```{r}
+f <- file.choose()
+states <- read_excel(f)
+```
+
+Calculate number of rows and columns in each dataset
+```{r}
+nrow(dennys)
+ncol(dennys)
+nrow(laquinta)
+ncol(laquinta)
+```
+
+Countries For La Quinta
+Honduras
+Turkey
+Chile
+Columbia
+Canada 
+USA 
+Mexico
+
+Countries Dennys
+USA
+
+Using the filter command to identify which locations have states that dont match abbreviations from the set.
+```{r}
+dennys %>%
+  filter(!(state %in% states$abbreviation))
+```
+All Dennys locations are in the US
+
+
+Mutate Dennys dataset to include country column
+```{r}
+dennys <- dennys %>%
+  mutate(country = "United States")
+```
+
+```{r}
+lq <- laquinta %>%
+  mutate(country = case_when(
+    state %in% state.abb     ~ "United States",
+    state %in% c("ON", "BC") ~ "Canada",
+    state == "ANT"           ~ "Colombia",
+    state == c("AG", "QR", "NL")            ~ "Mexico",
+    
+  ))
+```
+
+Now filtering to US only
+```{r}
+laquinta <- lq %>% filter(country == "United States")
+```
+
+Counting by state
+```{r}
+count(dennys, state, sort = TRUE)
+count(laquinta, state, sort = TRUE)
+```
+
+All seemed to be fairly in order as the larger states had more of each of these.
+
+Bind Dennys and La Quinta
+```{r}
+dennys <- dennys %>%
+  mutate(establishment = "Denny's")
+laquinta <- laquinta %>%
+  mutate(establishment = "La Quinta")
+dn_lq <- bind_rows(dennys, laquinta)
+```
+
+Create a plot
+```{r}
+ggplot(dn_lq, mapping = aes(x = longitude, y = latitude, color = establishment)) +
+  geom_point()
+```
+Filter to NC and Plot
+```{r}
+dn_lq2 <- dn_lq %>%
+  filter(state == "NC")
+
+ggplot(dn_lq2, mapping = aes(x = longitude, y = latitude, color = establishment)) +
+  geom_point()
+
+```
+
+Filter to Texas and plot
+```{r}
+dn_lq3 <- dn_lq %>%
+  filter(state == "TX")
+
+ggplot(dn_lq3, mapping = aes(x = longitude, y = latitude, color = establishment)) +
+  geom_point()
+
+```
