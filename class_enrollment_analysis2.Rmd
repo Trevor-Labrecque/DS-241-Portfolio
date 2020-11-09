@@ -1,0 +1,58 @@
+---
+title: "Class enrollment Data 2"
+author: "Trevor Labrecque"
+date: "21 Sep 2020"
+output: html_notebook
+---
+
+The intention of this analysis is to estimate the number of students that will enroll in MA132 next year.
+
+Prepare workspace:
+
+## Load packages
+
+```{r}
+library(tidyverse)
+library(janitor)
+library(readxl)
+library(skimr)
+library(summarytools)
+library(tidyr)
+```
+
+## Read the data
+
+```{r}
+dfa= read_excel("CU_ACAD_DEPT_ENRL.xlsx") %>% clean_names()
+```
+
+```{r}
+skim(dfa)
+```
+
+## Tidy Data
+
+Separate column term 2 into two variables
+```{r}
+dfb = dfa %>% separate(term2, into = c("semester", "year"), sep = " ")
+```
+
+### Clean and Subset Data
+
+Remove columns not of interest
+Filter to only math courses
+Filter to only 131, 132
+```{r}
+dfc = dfb %>% filter(component == "LEC") %>% select(-c(acad_org,current_status,instructor,course_id, component, title)) %>%
+  filter(subject == "MA") %>% filter(catalog %in% c("131","132"), semester %in% c("Fall", "Spring")) %>% mutate(year = as.numeric(year))
+```
+
+```{r}
+dfc2 = dfc %>% group_by(catalog,semester,year)%>% summarise(tot_enrl=sum(tot_enrl))
+```
+
+
+```{r}
+dfc3=dfc2 %>% pivot_wider(values_from = tot_enrl,names_from=c(semester,catalog)) %>% clean_names()
+```
+
