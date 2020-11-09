@@ -1,0 +1,60 @@
+---
+title: "Bikeshare Project"
+author: "Trevor Labrecque and Jason Phelps"
+date: "13 Nov 2020" 
+output: html_notebook
+---
+
+The intention of this analysis is to estimate the number of students that will enroll in MA132 next year.
+
+Prepare workspace:
+
+## Load packages
+
+```{r}
+library(tidyverse)
+library(janitor)
+library(readxl)
+library(skimr)
+library(summarytools)
+library(tidyr)
+library(ggplot2)
+library(lubridate)
+library(sp)
+library(sf)
+library(rgdal)
+```
+
+## Read the data
+
+```{r}
+dfa= read_excel("2020 Bikeshare.xlsx") %>% clean_names()
+weather = read_excel("WeatherData.xlsx") %>% clean_names()
+```
+
+
+## Tidy Data
+
+Gets rid of Ride_ID and then filters out the "bad" data
+```{r}
+dfb = dfa %>% select(-ride_id) %>% 
+  filter(duration_minutes > 0) %>% filter(duration_minutes < 1000)
+```
+
+Separates started at into day month year time. Puts in dfc. Since all data is in August of 2020, we will discard those variabes. Puts in dfd. Also removes other unnecessary variables
+```{r}
+dfc = dfb %>% separate(started_at, into = c("day", "time"), sep = " ") %>% 
+  separate(day, into = c("yearstart","monthstart","day"))
+dfd <- dfc %>% select(day)
+dfe = as.numeric(dfd$day)
+dfd[,1] = dfe
+```
+
+```{r}
+weather = weather %>% rename(day = aug)
+```
+
+```{r}
+overall = inner_join(dfd,weather,by.x = day, by.y = day)
+```
+
