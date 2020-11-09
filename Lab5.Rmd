@@ -1,0 +1,187 @@
+---
+title: "Lab 4"
+author: "Trevor Labrecque"
+date: "9/29/2020"
+output: html_document
+---
+Load packages
+```{r}
+library(tidyverse)
+library(readxl)
+```
+
+Load in the Data
+```{r}
+f <- file.choose()
+states <- read_excel(f)
+f <- file.choose()
+fastFood <- read_excel(f)
+```
+
+Filter to Alaska
+```{r}
+df_ak <- dennys %>%
+  filter(state == "AK")
+lq_ak <- laquinta %>%
+  filter(state == "AK")
+```
+
+Join Data Frames for Alaska Dennys and La Quinta data frames
+```{r}
+dn_lq_ak <- full_join(df_ak, lq_ak, by = "state")
+```
+
+Calculates distance between each Dennys and each Laquinta in Alaska
+```{r}
+dn_lq_ak = dn_lq_ak %>%
+  mutate(distance = 
+           haversine(longitude.y, latitude.y, longitude.x, latitude.x, round = 3))
+```
+
+Finds the Minimum Distance between for each dennys to a La Quinta in Alaska
+```{r}
+dn_lq_ak_mindist = dn_lq_ak %>%
+  group_by(address.x) %>%
+  summarise(closest = min(distance))
+```
+
+
+
+Filter to NC
+```{r}
+df_nc <- dennys %>%
+  filter(state == "NC")
+lq_nc <- laquinta %>%
+  filter(state == "NC")
+```
+
+Join Data Frames for NC Dennys and La Quinta data frames
+```{r}
+dn_lq_nc <- full_join(df_nc, lq_nc, by = "state")
+```
+
+Calculates distance between each Dennys and each Laquinta in NC
+```{r}
+dn_lq_nc = dn_lq_nc %>%
+  mutate(distance = 
+           haversine(longitude.x, latitude.x, longitude.y, latitude.y, round = 3))
+```
+
+Finds the Minimum Distance between for each dennys to a La Quinta in NC
+```{r}
+dn_lq_nc_mindist = dn_lq_nc %>%
+  group_by(address.x) %>%
+  summarise(closest = min(distance))
+```
+
+
+
+Filter to Texas
+```{r}
+df_tx <- dennys %>%
+  filter(state == "TX")
+lq_tx <- laquinta %>%
+  filter(state == "TX")
+```
+
+Join Data Frames for Texas Dennys and La Quinta data frames
+```{r}
+dn_lq_tx <- full_join(df_tx, lq_tx, by = "state")
+```
+
+Calculates distance between each Dennys and each Laquinta in Texas
+```{r}
+dn_lq_tx = dn_lq_tx %>%
+  mutate(distance = 
+           haversine(longitude.x, latitude.x, longitude.y, latitude.y, round = 3))
+```
+
+Finds the Minimum Distance between for each dennys to a La Quinta in NC
+```{r}
+dn_lq_tx_mindist = dn_lq_tx %>%
+  group_by(address.x) %>%
+  summarise(closest = min(distance))
+```
+
+Renames the providence variable to state for easy implementation
+```{r}
+fastFood %>% rename(state = province)
+```
+
+Tests the nearest_restaurant function
+```{r}
+test = nearest_restaurant('TX')
+```
+
+FUNCTIONS********************************************************************
+
+Haversine distance function to calculate the distance between two longituse and latitude coordinates
+```{r}
+haversine <- function(long1, lat1, long2, lat2, round = 3) {
+  # convert to radians
+  long1 = long1 * pi / 180
+  lat1  = lat1  * pi / 180
+  long2 = long2 * pi / 180
+  lat2  = lat2  * pi / 180
+  
+  R = 6371 # Earth mean radius in km
+  
+  a = sin((lat2 - lat1)/2)^2 + cos(lat1) * cos(lat2) * sin((long2 - long1)/2)^2
+  d = R * 2 * asin(sqrt(a))
+  
+  return( round(d,round) ) # distance in km
+}
+```
+
+Finds the nearest restaurant to each La Quinta location in a particular state
+```{r}
+nearest_restaurant = function (this_state) {
+  
+  fastFood_state <- fastFood %>%
+  filter(state == this_state)
+  
+  lq_state = lq %>%
+  filter(state == this_state)
+  
+  fastFood_lq_state_nearest <- full_join(lq_state, fastFood_state, by = "state") %>%
+    mutate(distance=
+           haversine(longitude.x, latitude.x, longitude.y, latitude.y, round = 4)) %>%
+  group_by(address.x) %>%
+  summarise(closest = min(distance))
+}
+
+```
+
+Finds minimum distance to a Dennys from each La Quinta location
+```{r}
+analyze_state_q = function (this_state) {
+  
+  dn_state <- dennys %>%
+  filter(state == this_state)
+  
+  lq_state = lq %>%
+  filter(state == this_state)
+  
+  dn_lq_state_nearest <- full_join(lq_state, dn_state, by = "state") %>%
+    mutate(distance=
+           haversine(longitude.x, latitude.x, longitude.y, latitude.y, round = 4)) %>%
+  group_by(address.x) %>%
+  summarise(closest = min(distance))  
+}
+
+```
+
+
+
+I find it showed that the list of fast food restaurants was overall closer to a La Quinta than a Dennys. Where Dennys may be the closest of any particular restaurant, having several restaurants in one made it tough for Dennys to compete.
+
+
+```{r}
+all_state_mindist = nearest_restaurant('TX')
+all_state_dennys = analyze_state_q('TX')
+all_state = full_join(x=all_state_dennys, y=all_state_mindist, by = "address.x") 
+all_state <- all_state %>% pivot_longer(2:3)
+all_state %>% ggplot() +
+  geom_density(aes(x=value, color = name))
+```
+
