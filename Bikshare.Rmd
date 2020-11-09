@@ -1,0 +1,138 @@
+---
+title: "Class enrollment Data 2"
+author: "Joe Skufca"
+date: "21 Sep 2020"
+output: html_notebook
+---
+
+The intention of this analysis is to estimate the number of students that will enroll in MA132 next year.
+
+Prepare workspace:
+
+## Load packages
+
+```{r}
+library(tidyverse)
+library(janitor)
+library(readxl)
+library(skimr)
+library(summarytools)
+library(tidyr)
+library(ggplot2)
+library(lubridate)
+library(sp)
+library(sf)
+library(rgdal)
+```
+
+## Read the data
+
+```{r}
+dfa= read_excel("BikeShare_Pivot.xlsx") %>% clean_names()
+```
+
+```{r}
+## need this file for later
+DC <- st_read("Preliminary_2020_Census_Tract/Preliminary_2020_Census_Tract.shp")
+```
+
+
+
+## Plot Spatial Data
+```{r }
+plot (DC)
+```
+
+## SUmmarized Data
+```{r}
+skim(dfa)
+```
+
+```{r}
+glimpse(dfa)
+```
+
+
+## Tidy Data
+
+Gets rid of Ride_ID and then filters out the "bad" data
+```{r}
+dfb = dfa %>% select(-ride_id) %>% 
+  filter(duration_minutes > 0)
+```
+
+
+## Plots
+Create histogram of the duration. Also subsets the data to make it more user friendly
+```{r}
+dfc = dfb %>% filter(duration_minutes < 1000)
+duration = dfc$duration_minutes
+hist(duration, breaks = 100)
+```
+Line plot on the two types of bike and the number of riders throughout the first 7 days of August.
+```{r}
+dfb %>% 
+  filter(month(started_at)==8,month(ended_at)==8) %>%
+ select(rideable_type,start=started_at,end=ended_at) %>%
+  pivot_longer(start:end, names_to="type",values_to="t") %>% arrange(t) %>%
+  mutate(increment=case_when(
+   type=="start"~1,
+   type=="end" ~ -1
+  )) %>%
+  group_by(rideable_type) %>%
+  mutate(riders=cumsum(increment)) %>% filter(mday(t)<=7) %>%
+    ggplot(aes(t,riders,color=rideable_type)) + geom_step() +
+  facet_wrap(~mday(t),scales = "free_x",ncol = 7) 
+```
+
+```{r}
+dfr <- dfb %>% 
+  filter(month(started_at)==8,month(ended_at)==8) %>%
+ select(rideable_type,start=started_at,end=ended_at) %>%
+  pivot_longer(start:end, names_to="type",values_to="t") %>% arrange(t) %>%
+  mutate(increment=case_when(
+   type=="start"~1,
+   type=="end" ~ -1
+  )) %>%
+  group_by(rideable_type) %>%
+  mutate(riders=cumsum(increment))
+```
+
+## Other Manipulation
+Takes only the month of August and creates a data frame that calculates the number of riders at any given time
+```{r}
+dfr1 <- dfb %>% 
+  filter(month(started_at)==8,month(ended_at)==8) %>%
+ select(start=started_at,end=ended_at) %>%
+  pivot_longer(start:end, names_to="type",values_to="t") %>% arrange(t) %>%
+  mutate(increment=case_when(
+   type=="start"~1,
+   type=="end" ~ -1
+  )) %>%
+  mutate(riders=cumsum(increment))
+```
+
+Finds the maximum number of riders and the mean number of riders on a particular day at a particular hour
+```{r}
+dfrh = dfr1 %>% group_by(hour(t), day_of_week = wday(t, label = TRUE)) %>%
+  summarise(max_riders = max(riders), mean_riders = mean(riders)) %>%
+  arrange(day_of_week)
+```
+
+
+## For 10/23
+
+We create a data frame that includes only the start and end station id's. It then separates the two variables and counts the number of times each station ID occurs. Also changes the names of the variables for easier joining and understanding. I then joined the two data frames using a full join and created a difference category.
+```{r}
+dfrd = dfb %>% select(start_station_id,end_station_id)
+dfstart = dfrd %>% count(start_station_id) %>% rename(id = start_station_id) %>% rename(startcount = n)
+dfend = dfrd %>% count(end_station_id) %>% rename(id = end_station_id) %>% rename(endcount = n)
+dfstartend = full_join(dfstart,dfend) %>% mutate(difference = startcount - endcount)
+sum(dfstart$startcount)
+```
+
+I think it would be interesting to find out whether there is a correlation as to whether the station id is close or far from the business district/monuments. We could analyze whther people were more or less likely to take a bike to or from work. I would say people are more likely to take one home as there would be less traffic and the bikes may have more stations in which one could be rented. As far as how to code this, I feel as though we would need to combine some of what we learned in IA640 mapping, as well as some of the Haversine function.
+
+Speaking of the haversine function I feel as though it would be cool to see the length of trip on average by, "the way the crow flies"
+
+
